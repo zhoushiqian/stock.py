@@ -14,6 +14,7 @@ all_in = {
 		'sz002008'  : [400,45.42]
 	 }
 '''
+stock_debets = {'hk': 22714.71}
 	
 map = {
 	'sh': [0,1,2,4,5,3],
@@ -70,13 +71,21 @@ def get_stock(code):
 def calculate_change(code):
 	val = get_stock(code)
 	change = float(val['current']) - float(val['old'])
-	return change * all_in[code][0]
+	return (change * all_in[code][0], change/float(val['old'])*100)
 
 def day_change(code):
 	cur = 1
 	if code.find('hk') >= 0:
 		cur = get_currency('HKD', 'CNY')
-	return calculate_change(code) * float(cur)
+	return calculate_change(code)[0] * float(cur)
+
+def orgin_money(code):
+	cur = 1
+	if code.find('hk') >= 0:
+		cur = get_currency('HKD', 'CNY')
+	val = get_stock(code)
+	change = all_in[code][1]
+        return change *all_in[code][0]*float(cur)
 
 def current_money(code):
 	cur = 1
@@ -99,14 +108,23 @@ def parse_txt():
 		item.append(float(stock['price']))
 		all_in[stock['code']] = item
 
+def calculate_debet():
+        debets=0
+        for key in stock_debets:
+            cur=1
+            if key.find('hk') >= 0:
+		cur = get_currency('HKD', 'CNY')
+
+            debets += stock_debets[key]*float(cur)
+            return debets
 
 def print_stock(code):
 	val = get_stock(code)
-	print '%s\t %s\t\t %s\t\t %s\t\t %s\t\t %s\t\t %d\t\t' %  (val['name'], val['open'], val['old'], val['top'], val['bottom'], val['current'], calculate_change(code))
+	print '%s\t %s\t %s\t %s\t %s\t\t %s\t\t %d \t\t %f' %  (val['name'], val['open'], val['old'], val['top'], val['bottom'], val['current'], calculate_change(code)[0], calculate_change(code)[1])
 
 if __name__ == '__main__':
 	parse_txt()
-	print 'name \t\t open \t\t old \t\t top \t\t bottom \tcurrent \t change'
+	print 'name \t\t open \t old \t top \t bottom \t current \t change \t percent'
 	for i in codes:
 		print_stock(i)
 
@@ -119,3 +137,8 @@ if __name__ == '__main__':
 	for i in codes:
 		sum += current_money(i)
 	print "total_gain CNY %f" % (sum)
+
+
+	for i in codes:
+		sum += orgin_money(i)
+	print "net_mony CNY %f" % (sum - calculate_debet())
