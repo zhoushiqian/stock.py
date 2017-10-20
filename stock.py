@@ -99,7 +99,7 @@ def parse_txt():
 	global codes, all_in
 	codes = []
 	all_in = {}
-	f = open('stocks.txt', 'r')
+	f = open(os.path.join(os.path.abspath('.', 'stocks.txt'), 'r')
 	data = json.loads(f.read())
 	for stock in data['stocks']:
 		item = []
