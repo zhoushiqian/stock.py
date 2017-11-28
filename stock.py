@@ -3,25 +3,17 @@
 import urllib
 import urllib2
 import json
+import os
+import sys
 from urllib import urlencode
 
-'''
-codes = ['rt_hk00392', 'rt_hk03383', 'rt_hk02607', 'sz002008']
-all_in = {
-		'rt_hk00392': [500, 41.6],
-		'rt_hk03383': [4000, 9.1],
-		'rt_hk02607': [500, 20.577],
-		'sz002008'  : [400,45.42]
-	 }
-'''
-stock_debets = {'hk': 22714.71}
-	
 map = {
 	'sh': [0,1,2,4,5,3],
 	'hk': [1,2,3,4,5,6],
 	'sz': [0,1,2,4,5,3],
       }
 	
+
 def get_currency(scur, tcur):
 # http://api.fixer.io/latest?base=CNY
 	url = 'http://api.fixer.io/latest'
@@ -33,12 +25,12 @@ def get_currency(scur, tcur):
 	f = urllib.urlopen('http://api.fixer.io/latest?base=HKD')
 
 	fixer_call = f.read()
+        f.close()
 	#print content
 	a_result = json.loads(fixer_call)
 	if a_result:
 		#print a_result
 		return a_result['rates'][tcur]
-
 
 def get_stock(code):
 	url = 'http://hq.sinajs.cn/list=' + code
@@ -48,11 +40,16 @@ def get_stock(code):
 	values = res.split('=')[1].split('"')[1].split(',')
 	if code.find('hk') >= 0:
 		select = 'hk'
+                s_location = 0
 	if code.find('sh') >= 0:
 		select = 'sh'
+                s_location = 1
 	if code.find('sz') >= 0:
 		select = 'sz'
+                s_location = 2
 	s_name = values[map[select][0]]
+        if len(s_name) < 12:
+            s_name += '   ';
 	s_open = values[map[select][1]]
 	s_old = values[map[select][2]]
 	s_top = values[map[select][3]]
@@ -64,81 +61,102 @@ def get_stock(code):
 		'old': s_old,
 		'top': s_top,
 		'bottom': s_bottom,
-		'current': s_current
+		'current': s_current,
+                'location':s_location
 	      } 
 	return ret
 
-def calculate_change(code):
-	val = get_stock(code)
-	change = float(val['current']) - float(val['old'])
-	return (change * all_in[code][0], change/float(val['old'])*100)
 
-def day_change(code):
-	cur = 1
+class stock:
+    def __init__(self, code, count, price):
+        self.code = code
+        self.price = float(price)
+        self.count = int(count)
+	self.cur = 1
+	self.value = 0
+	self.gain = 0
+	#self.day_percent = 0
+	#self.gain_percent = 0
 	if code.find('hk') >= 0:
-		cur = get_currency('HKD', 'CNY')
-	return calculate_change(code)[0] * float(cur)
-
-def orgin_money(code):
-	cur = 1
-	if code.find('hk') >= 0:
-		cur = get_currency('HKD', 'CNY')
+		#self.cur = float(get_currency('HKD', 'CNY'))
+		self.cur = cur
 	val = get_stock(code)
-	change = all_in[code][1]
-        return change *all_in[code][0]*float(cur)
+        self.name = val['name'][0:18]
+	self.open = val['open']
+	self.old = float(val['old'])
+	self.top = val['top']
+	self.bottom = val['bottom']
+	self.current = float(val['current'])
+	self.day_change = self.get_day_change()
+        self.gain = self.get_gain()
+        self.value = self.get_value()
+        self.location = val['location']
 
-def current_money(code):
-	cur = 1
-	if code.find('hk') >= 0:
-		cur = get_currency('HKD', 'CNY')
-	val = get_stock(code)
-	change = float(val['current']) - all_in[code][1]
-  	return change *all_in[code][0]*float(cur)
+    def get_day_change(self):
+	self.day_change  = round((self.current - self.old) * self.count, 2)
+        self.day_percent = round((self.current - self.old) / self.old * 100, 2)
+	return self.day_change
+
+    def get_value(self):
+	self.value  = round((self.current) * self.count*self.cur, 2)
+	return self.value 
+
+    def get_gain(self): 
+        self.gain = round((self.current - self.price) * self.count, 2)
+        self.gain_percent = round((self.current - self.price) /self.price * 100, 2)
+        return self.gain
+
+    def update(self):
+        val = get_stock(self.code)
+	self.top = val['top']
+	self.bottom = val['bottom']
+	self.current = val['current']
 
 def parse_txt():
-	global codes, all_in
+	global codes, all_in, debet, cur
 	codes = []
 	all_in = {}
-	f = open(os.path.join(os.path.abspath('.', 'stocks.txt'), 'r')
+        dirt = os.path.dirname(os.path.realpath(__file__))
+	f = open(os.path.join(dirt, 'stocks.txt'), 'r')
 	data = json.loads(f.read())
-	for stock in data['stocks']:
+        f.close()
+        cur = float(get_currency('HKD', 'CNY'))
+        debet = float(data['debet']) * cur
+	for s in data['stocks']:
 		item = []
-		codes.append(stock['code'])
-		item.append(int(stock['count']))
-		item.append(float(stock['price']))
-		all_in[stock['code']] = item
+		codes.append(s['code'])
+		item.append(int(s['count']))
+		item.append(float(s['price']))
+		all_in[s['code']] = item
 
-def calculate_debet():
-        debets=0
-        for key in stock_debets:
-            cur=1
-            if key.find('hk') >= 0:
-		cur = get_currency('HKD', 'CNY')
 
-            debets += stock_debets[key]*float(cur)
-            return debets
-
-def print_stock(code):
-	val = get_stock(code)
-	print '%s\t %s\t %s\t %s\t %s\t\t %s\t\t %d \t\t %f' %  (val['name'], val['open'], val['old'], val['top'], val['bottom'], val['current'], calculate_change(code)[0], calculate_change(code)[1])
 
 if __name__ == '__main__':
 	parse_txt()
-	print 'name \t\t open \t old \t top \t bottom \t current \t change \t percent'
-	for i in codes:
-		print_stock(i)
+        stocks = [] 
+	print 'name \t\t open \t old \t top \t bottom \t current \t day_change \t day_percent \t gain \t\t gain_percent \t net_value'
+        for code in codes:
+            s = stock(code, all_in[code][0], all_in[code][1])
+	    print '%s\t %s\t %s\t %s\t %s\t\t %s\t\t %s\t\t %s\t\t %s\t\t %s\t\t %s' % \
+                    (s.name, s.open, s.old, s.top, s.bottom, str(s.current),\
+                    str(s.day_change), str(s.day_percent), str(s.gain), str(s.gain_percent),\
+                    str(s.value))
+            stocks.append(s)
 
-	sum = 0
-	for i in codes:
-		sum += day_change(i)
-	print "today_gain CNY %f" % (sum)
-	
-	sum = 0
-	for i in codes:
-		sum += current_money(i)
-	print "total_gain CNY %f" % (sum)
+        print 
+        day_change = 0
+        gain = 0
+        value = 0
+        for s in stocks:
+            if s.location != 0:
+                day_change += s.day_change
+                gain += s.gain
+                value += s.value
+            else:
+                day_change += s.day_change * s.cur
+                gain += s.gain * s.cur
+                value += s.value *s.cur
+        print 'day_change \t\t gain \t\t\t value'
+        print '%s\t\t %s\t\t %s\t' % (day_change, gain, value)
 
 
-	for i in codes:
-		sum += orgin_money(i)
-	print "net_mony CNY %f" % (sum - calculate_debet())

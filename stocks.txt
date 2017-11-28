@@ -1,25 +1,32 @@
 {
-  
+    "debet": "40238.09", 
     "stocks": [
         {
-	    "code":  "rt_hk00392",
-            "count": "500",
-            "price": "41.6"
+	    "code":  "rt_hk02601",
+            "count": "1000",
+            "price": "38"
         },
         {
-	    "code":  "rt_hk03383",
+	    "code":  "rt_hk00966",
+            "count": "1200",
+            "price": "25.1069"
+        },
+        {
+	    "code":  "rt_hk00135",
             "count": "4000",
-            "price": "9.1"
+            "price": "6.73"
         },
-        {
-	    "code":  "rt_hk02607",
-            "count": "500",
-            "price": "20.577"
+ 
+       {
+	    "code":  "sz002153",
+            "count": "600",
+            "price": "29.368"
         },
-        {
-	    "code":  "sz002008",
-            "count": "400",
-            "price": "45.42"
+       {
+	    "code":  "sh601318",
+            "count": "100",
+            "price": "74.31"
         }
+
     ]
 }
