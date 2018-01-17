@@ -11,6 +11,7 @@ map = {
 	'sh': [0,1,2,4,5,3],
 	'hk': [1,2,3,4,5,6],
 	'sz': [0,1,2,4,5,3],
+        'us': [0,5,26,6,7,1]
       }
 	
 
@@ -22,14 +23,14 @@ def get_currency(scur, tcur):
 	}
 	params = urlencode(params)
 
-	f = urllib.urlopen('http://api.fixer.io/latest?base=HKD')
+	f = urllib.urlopen('http://api.fixer.io/latest?base=' + scur)
 
 	fixer_call = f.read()
         f.close()
 	#print content
 	a_result = json.loads(fixer_call)
 	if a_result:
-		#print a_result
+		#print a_result['rates'][tcur]
 		return a_result['rates'][tcur]
 
 def get_stock(code):
@@ -47,9 +48,14 @@ def get_stock(code):
 	if code.find('sz') >= 0:
 		select = 'sz'
                 s_location = 2
+        if code.find('gb') >= 0:
+                select = 'us'
+                s_location = 3
+
 	s_name = values[map[select][0]]
+        #print len(s_name)
         if len(s_name) < 12:
-            s_name += '   ';
+            s_name += '\t'
 	s_open = values[map[select][1]]
 	s_old = values[map[select][2]]
 	s_top = values[map[select][3]]
@@ -78,8 +84,13 @@ class stock:
 	#self.day_percent = 0
 	#self.gain_percent = 0
 	if code.find('hk') >= 0:
-		#self.cur = float(get_currency('HKD', 'CNY'))
-		self.cur = cur
+		self.cur = float(get_currency('HKD', 'CNY'))
+		#self.cur = cur
+
+	if code.find('gb') >= 0:
+		self.cur = float(get_currency('USD', 'CNY'))
+		#self.cur = cur
+	
 	val = get_stock(code)
         self.name = val['name'][0:18]
 	self.open = val['open']
@@ -90,6 +101,7 @@ class stock:
 	self.day_change = self.get_day_change()
         self.gain = self.get_gain()
         self.value = self.get_value()
+        self.value_old = self.get_old()
         self.location = val['location']
 
     def get_day_change(self):
@@ -100,6 +112,9 @@ class stock:
     def get_value(self):
 	self.value  = round((self.current) * self.count*self.cur, 2)
 	return self.value 
+    def get_old(self):
+	self.value_old  = round((self.old) * self.count*self.cur, 2)
+	return self.value_old
 
     def get_gain(self): 
         self.gain = round((self.current - self.price) * self.count, 2)
@@ -147,16 +162,24 @@ if __name__ == '__main__':
         day_change = 0
         gain = 0
         value = 0
+        value_old = 0
         for s in stocks:
-            if s.location != 0:
-                day_change += s.day_change
-                gain += s.gain
-                value += s.value
-            else:
-                day_change += s.day_change * s.cur
-                gain += s.gain * s.cur
-                value += s.value *s.cur
-        print 'day_change \t\t gain \t\t\t value'
-        print '%s\t\t %s\t\t %s\t' % (day_change, gain, value)
+            #if s.location == 0:
+            #    day_change += s.day_change
+            #    gain += s.gain
+            #    value += s.value
+            #else:
+            #    day_change += s.day_change * s.cur
+            #    gain += s.gain * s.cur
+            #    value += s.value *s.cur
+            day_change += s.day_change * s.cur
+            gain += s.gain * s.cur
+            value += s.value
+            value_old += s.value_old
+
+        day_percent = round(day_change /value_old * 100, 2)
+        print
+        print 'day_change \t\t day_percent \t\t gain \t\t value \t\t'
+        print '%s\t\t %s\t\t %s\t\t %s\t\t' % (day_change, day_percent, gain, value)
 
 
